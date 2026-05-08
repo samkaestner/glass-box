@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useThoughtTree } from "@glassbox/react";
-import { SpatialRail } from "@glassbox/react";
+import { SpatialRail, useGlassBox } from "@glassbox/react";
 import { askGlassBox, askGlassBoxContinuation } from "./actions";
 
 type Message = {
@@ -13,7 +12,17 @@ type Message = {
 };
 
 export function LLMOrchestrator() {
-  const { addNode, getBranchTimeline, getNode, state } = useThoughtTree();
+  const {
+    completeRun,
+    events,
+    getNode,
+    recordConflict,
+    recordDecision,
+    recordSource,
+    requestActionApproval,
+    state,
+    status
+  } = useGlassBox();
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -22,42 +31,21 @@ export function LLMOrchestrator() {
   const lastQueryRef = useRef<string>("");
   const processedConflictIds = useRef<Set<string>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const activeTimeline = state.branchesById[state.activeBranchId]?.timeline ?? [];
+  const lastActiveNodeId = activeTimeline[activeTimeline.length - 1];
+  const lastActiveNode = lastActiveNodeId ? state.nodesById[lastActiveNodeId] : undefined;
+  const hasBlockingConflict = lastActiveNode?.type === "conflict" && !lastActiveNode.resolution;
+  const isRailVisible = isRailOpen || hasBlockingConflict;
+  const branchCount = Object.keys(state.branchesById).length;
+  const eventLabel = `${events.length} audit event${events.length === 1 ? "" : "s"}`;
+  const branchLabel = `${branchCount} branch${branchCount === 1 ? "" : "es"}`;
 
   // Scroll to bottom of chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-continuation loop: Watch for resolved conflicts
-  useEffect(() => {
-    const timeline = getBranchTimeline();
-    if (timeline.length === 0) return;
-
-    const lastNode = timeline[timeline.length - 1];
-    
-    // Auto-pop open if a conflict arises or user needs to see the rail
-    if (lastNode.type === "conflict" && !lastNode.resolution) {
-      setIsRailOpen(true);
-    }
-
-    // Handle resolution continuation
-    if (
-      lastNode.type === "conflict" && 
-      lastNode.resolution && 
-      !processedConflictIds.current.has(lastNode.id)
-    ) {
-      processedConflictIds.current.add(lastNode.id);
-      
-      const chosenNode = getNode(lastNode.resolution.chosenNodeId);
-      const chosenLabel = chosenNode?.type === "citation" 
-        ? chosenNode.source.title ?? chosenNode.source.uri 
-        : lastNode.resolution.chosenNodeId;
-
-      handleContinuation(chosenLabel, lastNode.description ?? "Contradictory data detected");
-    }
-  }, [state.revision]);
-
-  const handleContinuation = async (chosenLabel: string, conflictDescription: string) => {
+  const handleContinuation = React.useCallback(async (chosenLabel: string, conflictDescription: string) => {
     setIsLoading(true);
     try {
       const preferenceMsg = chosenLabel 
@@ -82,14 +70,26 @@ export function LLMOrchestrator() {
 
       // Result is guaranteed to be a decision
       const payload = result.decisionPayload;
-      addNode({
-        type: "decision",
+      const decision = recordDecision({
         claim: payload.claim,
         confidence: payload.confidence,
         rationale: payload.rationale,
         provenance: [],
         alternatives: payload.alternatives || []
       });
+      requestActionApproval({
+        action: {
+          kind: "demo.audit.save",
+          payload: {
+            decisionNodeId: decision.nodeId ?? "",
+            claim: payload.claim
+          },
+          summary: "Save answer to audit history",
+          explanation:
+            "The playground records assistant outputs as auditable events so the host app can persist or reject downstream side effects."
+        }
+      });
+      completeRun({ summary: payload.claim });
 
       setMessages(prev => [...prev, {
         id: Math.random().toString(36).substr(2, 9),
@@ -101,7 +101,33 @@ export function LLMOrchestrator() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [completeRun, recordDecision, requestActionApproval]);
+
+  // Auto-continuation loop: watch for resolved conflicts on the active branch.
+  useEffect(() => {
+    if (
+      !lastActiveNode ||
+      lastActiveNode.type !== "conflict" ||
+      !lastActiveNode.resolution ||
+      processedConflictIds.current.has(lastActiveNode.id)
+    ) {
+      return;
+    }
+
+    processedConflictIds.current.add(lastActiveNode.id);
+
+    const chosenNodeId = lastActiveNode.resolution.chosen;
+    const chosenNode = getNode(chosenNodeId);
+    const chosenLabel =
+      chosenNode?.type === "citation"
+        ? chosenNode.source.title ?? chosenNode.source.uri
+        : chosenNodeId;
+
+    void handleContinuation(
+      chosenLabel,
+      lastActiveNode.description ?? "Contradictory data detected"
+    );
+  }, [getNode, handleContinuation, lastActiveNode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,21 +149,42 @@ export function LLMOrchestrator() {
       
       const citationIds: string[] = [];
       for (const citation of result.citations) {
-        const nextState = addNode(citation);
-        const timeline = nextState.branchesById[nextState.activeBranchId].timeline;
-        citationIds.push(timeline[timeline.length - 1]);
+        if (citation.type !== "citation") {
+          continue;
+        }
+        const recorded = recordSource({
+          source: citation.source,
+          excerpt: citation.excerpt,
+          contentHash: citation.contentHash,
+          tags: citation.tags
+        });
+        if (recorded.nodeId) {
+          citationIds.push(recorded.nodeId);
+        }
       }
 
       if (result.llmResponse.nodeType === "decision") {
         const payload = result.llmResponse.decisionPayload;
-        addNode({
-          type: "decision",
+        const decision = recordDecision({
           claim: payload.claim,
           confidence: payload.confidence,
           rationale: payload.rationale,
           provenance: citationIds,
           alternatives: payload.alternatives || []
         });
+        requestActionApproval({
+          action: {
+            kind: "demo.audit.save",
+            payload: {
+              decisionNodeId: decision.nodeId ?? "",
+              claim: payload.claim
+            },
+            summary: "Save answer to audit history",
+            explanation:
+              "The host app controls whether this assistant output becomes part of a durable audit trail."
+          }
+        });
+        completeRun({ summary: payload.claim });
 
         setMessages(prev => [...prev, {
           id: Math.random().toString(36).substr(2, 9),
@@ -146,8 +193,7 @@ export function LLMOrchestrator() {
         }]);
       } else if (result.llmResponse.nodeType === "conflict") {
         setIsRailOpen(true);
-        addNode({
-          type: "conflict",
+        recordConflict({
           contenders: citationIds.length >= 2 ? citationIds.slice(-2) : citationIds,
           description: result.llmResponse.conflictPayload.description
         });
@@ -224,11 +270,18 @@ export function LLMOrchestrator() {
       {/* RIGHT PANE: EXPLAINABILITY RAIL */}
       <div 
         className={`transition-all duration-500 ease-in-out flex flex-col rounded-3xl bg-[#0d1117] border border-white/5 shadow-2xl relative ${
-          isRailOpen ? "w-[400px]" : "w-0 overflow-hidden opacity-0 pointer-events-none translate-x-12"
+          isRailVisible ? "w-[400px]" : "w-0 overflow-hidden opacity-0 pointer-events-none translate-x-12"
         }`}
       >
         <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/10">
-          <span className="text-[10px] font-bold tracking-widest text-white/40 uppercase pl-2">Explainability Rail</span>
+          <div className="min-w-0 pl-2">
+            <span className="block text-[10px] font-bold tracking-widest text-white/40 uppercase">
+              Explainability Rail
+            </span>
+            <span className="mt-1 block truncate text-[11px] text-white/35">
+              {eventLabel} · {branchLabel} · {status}
+            </span>
+          </div>
           <button 
             onClick={() => setIsRailOpen(false)}
             className="p-1.5 hover:bg-white/5 rounded-lg transition text-white/40 hover:text-white/80"
@@ -242,7 +295,7 @@ export function LLMOrchestrator() {
       </div>
 
       {/* COLLAPSED RAIL TAB */}
-      {!isRailOpen && (
+      {!isRailVisible && (
         <button 
           onClick={() => setIsRailOpen(true)}
           className="fixed right-6 top-1/2 -translate-y-1/2 w-10 h-32 bg-[#0d1117] border border-white/10 rounded-full flex flex-col items-center justify-center gap-4 group hover:bg-white/5 transition-colors shadow-2xl z-50"

@@ -12,7 +12,7 @@ import {
   createThoughtTreeStateManager
 } from "@glassbox/core";
 
-const ThoughtTreeContext = React.createContext<UseThoughtTreeAPI | null>(null);
+export const ThoughtTreeContext = React.createContext<UseThoughtTreeAPI | null>(null);
 
 export type ThoughtTreeProviderProps = {
   children: React.ReactNode;
@@ -146,4 +146,3 @@ export function useThoughtTree(): UseThoughtTreeAPI {
   }
   return context;
 }
-

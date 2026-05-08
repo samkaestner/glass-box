@@ -63,7 +63,7 @@ export async function askGlassBox(query: string) {
   let files: string[] = [];
   try {
     files = await fs.readdir(dataDir);
-  } catch (e) {
+  } catch {
     // Directory might not exist yet
     await fs.mkdir(dataDir, { recursive: true });
   }
@@ -161,7 +161,7 @@ export async function askGlassBoxContinuation(
   let files: string[] = [];
   try {
     files = await fs.readdir(dataDir);
-  } catch (e) {
+  } catch {
     await fs.mkdir(dataDir, { recursive: true });
   }
 

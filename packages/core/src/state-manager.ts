@@ -193,8 +193,12 @@ export function addNodeToThoughtTree(
 
   const createdAt = getNextTimestamp(options);
   const factory = options.idFactory ?? createDeterministicIdFactory();
-  const rawNodeId = factory.nextNodeId({ type: input.type, branchId });
-  const nodeId = uniqueId(rawNodeId, getUsedNodeIds(state));
+  const usedNodeIds = getUsedNodeIds(state);
+  if (input.id && usedNodeIds.has(input.id)) {
+    throw new Error(`[GlassBox] Node "${input.id}" already exists.`);
+  }
+  const rawNodeId = input.id ?? factory.nextNodeId({ type: input.type, branchId });
+  const nodeId = input.id ?? uniqueId(rawNodeId, usedNodeIds);
   const node = buildThoughtNode(input, nodeId, branchId, createdAt, parentIds);
 
   return {
@@ -237,11 +241,15 @@ export function forkThoughtTreeAtNode(
 
   const createdAt = getNextTimestamp(options);
   const factory = options.idFactory ?? createDeterministicIdFactory();
+  const usedBranchIds = getUsedBranchIds(state);
+  if (input.branchId && usedBranchIds.has(input.branchId)) {
+    throw new Error(`[GlassBox] Branch "${input.branchId}" already exists.`);
+  }
   const rawBranchId = factory.nextBranchId({
     parentBranchId: fromBranchId,
     forkAtNodeId: forkNode.id
   });
-  const newBranchId = uniqueId(rawBranchId, getUsedBranchIds(state));
+  const newBranchId = input.branchId ?? uniqueId(rawBranchId, usedBranchIds);
 
   const nextBranch: BranchMeta = {
     id: newBranchId,
@@ -502,4 +510,3 @@ export function listNodeIdsByType(
     .filter((node) => node.type === type)
     .map((node) => node.id);
 }
-

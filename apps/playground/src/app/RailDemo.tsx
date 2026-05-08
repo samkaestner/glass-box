@@ -1,17 +1,25 @@
 "use client";
 
-import { createEmptyThoughtTreeState } from "@glassbox/core";
-import { ThoughtTreeProvider } from "@glassbox/react";
+import * as React from "react";
+import {
+  GlassBoxProvider,
+  createLocalStorageGlassBoxPersistence
+} from "@glassbox/react";
 import { LLMOrchestrator } from "./LLMOrchestrator";
 
 export function RailDemo() {
-  // Use the core helper to spin up an empty DAG with a default "branch-main"
-  const emptyState = createEmptyThoughtTreeState();
+  const persistence = React.useMemo(
+    () => createLocalStorageGlassBoxPersistence("glassbox:playground"),
+    []
+  );
 
   return (
-    <ThoughtTreeProvider initialState={emptyState}>
+    <GlassBoxProvider
+      runId="playground-demo"
+      title="GlassBox playground"
+      persistence={persistence}
+    >
       <LLMOrchestrator />
-    </ThoughtTreeProvider>
+    </GlassBoxProvider>
   );
 }
-
