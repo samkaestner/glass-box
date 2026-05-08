@@ -143,7 +143,8 @@ const seedState: ThoughtTreeState = {
           flagName: "ab_lift_experiment",
           cohortPercentage: 10,
           fallbackVariant: "control"
-        }
+        },
+        explanation: "By rolling out the feature flag to 10% of users, we cap the blast radius in case of unexpected errors, while still gathering enough signal to measure the conversion lift against the control variant."
       },
       gate: {
         status: "pending"
@@ -157,6 +158,43 @@ const seedState: ThoughtTreeState = {
       parents: ["node-execution-1"],
       contenders: ["node-citation-2", "node-citation-3"],
       description: "Wait, the projected API limits contradict the budget constraints. We must resolve the data conflict before proceeding further."
+    },
+    "node-decision-2b": {
+      id: "node-decision-2b",
+      type: "decision",
+      createdAt: "2026-04-28T00:02:10.000Z",
+      branchId: "branch-b",
+      parents: ["node-decision-1"],
+      claim: "decision 2b",
+      confidence: 0.55,
+      provenance: ["node-citation-4"],
+      rationale: "Reframing around the cost ceiling constraint as requested. The arXiv paper suggests an alternative algorithmic approach that drastically reduces compute overhead.",
+      alternatives: [
+        { id: "alt-1", label: "Proceed with cheap algorithm", description: "Accept a 5% drop in accuracy." },
+        { id: "alt-2", label: "Request budget extension", description: "Fallback to the high-lift algorithm." }
+      ]
+    },
+    "node-decision-3b": {
+      id: "node-decision-3b",
+      type: "decision",
+      createdAt: "2026-04-28T00:03:10.000Z",
+      branchId: "branch-b",
+      parents: ["node-decision-2b"],
+      claim: "decision 3b",
+      confidence: 0.70,
+      provenance: ["node-decision-2b"],
+      rationale: "Opting for the cheap algorithm. We need to deploy the new model to a staging environment to verify latency."
+    },
+    "node-decision-3c": {
+      id: "node-decision-3c",
+      type: "decision",
+      createdAt: "2026-04-28T00:03:30.000Z",
+      branchId: "branch-c",
+      parents: ["node-decision-2b"],
+      claim: "decision 3c",
+      confidence: 0.88,
+      provenance: ["node-decision-2b"],
+      rationale: "Instead of proceeding with the cheap algorithm, we are requesting a budget extension. I have drafted an email to the finance team."
     }
   },
   edges: [
@@ -164,7 +202,10 @@ const seedState: ThoughtTreeState = {
     { from: "node-decision-1", to: "node-decision-2a" },
     { from: "node-decision-2a", to: "node-decision-3a" },
     { from: "node-decision-3a", to: "node-execution-1" },
-    { from: "node-execution-1", to: "node-conflict-1" }
+    { from: "node-execution-1", to: "node-conflict-1" },
+    { from: "node-decision-1", to: "node-decision-2b" },
+    { from: "node-decision-2b", to: "node-decision-3b" },
+    { from: "node-decision-2b", to: "node-decision-3c" }
   ],
   branchesById: {
     "branch-main": {
@@ -172,10 +213,26 @@ const seedState: ThoughtTreeState = {
       name: "Main",
       createdAt: "2026-04-28T00:00:00.000Z",
       timeline: ["node-citation-1", "node-decision-1", "node-decision-2a", "node-decision-3a", "node-execution-1", "node-conflict-1"]
+    },
+    "branch-b": {
+      id: "branch-b",
+      name: "Cost Ceiling Fork",
+      createdAt: "2026-04-28T00:02:10.000Z",
+      forkedFromNodeId: "node-decision-1",
+      parentBranchId: "branch-main",
+      timeline: ["node-citation-1", "node-decision-1", "node-decision-2b", "node-decision-3b"]
+    },
+    "branch-c": {
+      id: "branch-c",
+      name: "Budget Extension",
+      createdAt: "2026-04-28T00:03:30.000Z",
+      forkedFromNodeId: "node-decision-2b",
+      parentBranchId: "branch-b",
+      timeline: ["node-citation-1", "node-decision-1", "node-decision-2b", "node-decision-3c"]
     }
   },
   rootBranchId: "branch-main",
-  activeBranchId: "branch-main",
+  activeBranchId: "branch-c",
   revision: 1,
   updatedAt: "2026-04-28T00:02:00.000Z"
 };

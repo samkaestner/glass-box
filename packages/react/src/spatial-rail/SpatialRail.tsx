@@ -115,6 +115,7 @@ export function SpatialRail(props: SpatialRailProps) {
   const [modalSourceBranchId, setModalSourceBranchId] = React.useState<BranchId | null>(null);
 
   const railTracksRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const nodeRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const branchLaneRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -144,6 +145,20 @@ export function SpatialRail(props: SpatialRailProps) {
     }
     return lineage;
   }, [activeBranch.id, state.branchesById]);
+
+  const activeBranchTimelineCount = getBranchTimeline(activeBranch.id).length;
+  const previousTimelineCountRef = React.useRef(activeBranchTimelineCount);
+
+  React.useLayoutEffect(() => {
+    if (!scrollContainerRef.current) return;
+    if (activeBranchTimelineCount > previousTimelineCountRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+    previousTimelineCountRef.current = activeBranchTimelineCount;
+  }, [activeBranchTimelineCount, state.activeBranchId]);
 
   const getNodeRefKey = React.useCallback((branchId: BranchId, nodeId: string) => {
     return `${branchId}:${nodeId}`;
@@ -355,12 +370,17 @@ export function SpatialRail(props: SpatialRailProps) {
 
             <div className="mt-1.5 flex flex-col items-center gap-0.5">
               {visibleCitations.map((citation) => (
-                <a
+                <motion.a
                   key={citation.id}
                   href={citation.source.uri}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(event) => event.stopPropagation()}
+                  animate={{
+                    scale: isHoveredDecision ? 1.02 : 1,
+                    x: isHoveredDecision ? 4 : 0
+                  }}
+                  transition={{ duration: 0.2 }}
                   className={[
                     "inline-flex max-w-[140px] items-center truncate text-[11px] font-medium underline-offset-2",
                     highlightedCitationIds.size > 0
@@ -376,7 +396,7 @@ export function SpatialRail(props: SpatialRailProps) {
                   title={citation.source.title ?? citation.source.uri}
                 >
                   {citation.source.domain ?? citation.source.title ?? "source"}
-                </a>
+                </motion.a>
               ))}
 
               {hasOverflow && !isExpanded ? (
@@ -539,22 +559,26 @@ export function SpatialRail(props: SpatialRailProps) {
   }, [activeBranchLineage, branches, getAnyRenderedNodeElement, getBranchTimeline, getNodeRefKey]);
 
   React.useLayoutEffect(() => {
-    const rafId = window.requestAnimationFrame(() => {
-      recomputeForkConnectors();
-    });
-    return () => {
-      window.cancelAnimationFrame(rafId);
-    };
-  }, [recomputeForkConnectors, state.activeBranchId, state.revision]);
+    recomputeForkConnectors();
+  }, [recomputeForkConnectors, state.activeBranchId, state.revision, branchStartOffsets]);
 
-  React.useLayoutEffect(() => {
-    const rafId = window.requestAnimationFrame(() => {
-      recomputeForkConnectors();
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !window.ResizeObserver) return;
+    const observer = new ResizeObserver(() => {
+      window.requestAnimationFrame(() => {
+        recomputeForkConnectors();
+      });
     });
-    return () => {
-      window.cancelAnimationFrame(rafId);
-    };
-  }, [branchStartOffsets, recomputeForkConnectors]);
+
+    if (railTracksRef.current) {
+      observer.observe(railTracksRef.current);
+    }
+    for (const lane of Object.values(branchLaneRefs.current)) {
+      if (lane) observer.observe(lane);
+    }
+
+    return () => observer.disconnect();
+  }, [recomputeForkConnectors, branches.length]);
 
   React.useEffect(() => {
     const onResize = () => recomputeForkConnectors();
@@ -564,6 +588,7 @@ export function SpatialRail(props: SpatialRailProps) {
 
   return (
     <motion.aside
+      ref={scrollContainerRef}
       layout
       {...rest}
       className={[
@@ -604,8 +629,14 @@ export function SpatialRail(props: SpatialRailProps) {
         ) : null}
       </div>
 
-      <div className="overflow-x-auto pb-2">
-        <div ref={railTracksRef} className="relative">
+      <div 
+        className="overflow-x-auto pb-2"
+        style={{ 
+          WebkitMaskImage: "linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)", 
+          maskImage: "linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)" 
+        }}
+      >
+        <div ref={railTracksRef} className="relative w-max min-w-full">
           <svg
             className="pointer-events-none absolute inset-0 z-0"
             width={forkConnectorViewport.width}
@@ -685,16 +716,19 @@ export function SpatialRail(props: SpatialRailProps) {
                 }}
                 role={canSwitchToBranch ? "button" : undefined}
                 tabIndex={canSwitchToBranch ? 0 : undefined}
-                className="w-[188px] text-left"
+                className={[
+                  "text-left shrink-0 transition-[width] duration-300 ease-out",
+                  isActive ? "w-[384px]" : "w-[188px]"
+                ].join(" ")}
                 aria-label={canSwitchToBranch ? `Switch to branch ${branch.id}` : undefined}
               >
                 <div
                   ref={(element) => setBranchLaneRef(branch.id, element)}
                   className={[
-                    "p-2 transition",
+                    "p-2 transition-all duration-500",
                     isActive
                       ? ""
-                      : "opacity-65 hover:opacity-90",
+                      : "opacity-40 grayscale-[0.4] hover:opacity-75 hover:grayscale-0",
                     isSwitchingBranch ? "cursor-not-allowed opacity-60" : ""
                   ]
                     .filter(Boolean)
@@ -733,8 +767,11 @@ export function SpatialRail(props: SpatialRailProps) {
                                 })}
                               </div>
                               {index < visibleNodes.length - 1 ? (
-                                <div
-                                  className={isActive ? "h-8 w-px bg-[#d9b266]/80" : "h-8 w-px bg-white/25"}
+                                <motion.div
+                                  initial={{ height: 0 }}
+                                  animate={{ height: 32 }}
+                                  transition={{ duration: 0.3, ease: "easeOut" }}
+                                  className={isActive ? "w-px bg-[#d9b266]/80" : "w-px bg-white/25"}
                                   aria-hidden="true"
                                 />
                               ) : null}
@@ -749,9 +786,16 @@ export function SpatialRail(props: SpatialRailProps) {
                           {branch.forkedFromNodeId ? (
                             <div
                               ref={(element) => setNodeRef(branch.id, branch.forkedFromNodeId!, element)}
-                              className="inline-flex max-w-[168px] items-center gap-2 rounded-full border border-white/20 bg-white/[0.02] px-3 py-1 text-[11px] font-medium text-white/55"
+                              className={[
+                                "inline-flex max-w-[168px] items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors duration-500",
+                                isActive
+                                  ? "border-[#e0bc78]/50 bg-[#e0bc78]/10 text-[#e0bc78] shadow-[0_0_12px_rgba(224,188,120,0.15)]"
+                                  : "border-white/20 bg-white/[0.02] text-white/55"
+                              ].join(" ")}
                             >
-                              <span className="shrink-0 uppercase tracking-[0.16em] text-white/40">fork</span>
+                              <span className={`shrink-0 uppercase tracking-[0.16em] transition-colors ${isActive ? "text-[#e0bc78]/60" : "text-white/40"}`}>
+                                fork
+                              </span>
                               <span className="min-w-0 truncate">
                                 {(() => {
                                   const forkNode = state.nodesById[branch.forkedFromNodeId!];

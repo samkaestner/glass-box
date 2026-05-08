@@ -264,45 +264,59 @@ export function DecisionModal(props: DecisionModalProps) {
                   className="mt-5 space-y-5"
                 >
                   <section>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                    <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                       Rationale
                     </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-white/82">
-                      {decision.rationale ?? "No rationale provided for this decision."}
-                    </p>
+                    <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 shadow-inner">
+                      <p className="text-[13px] leading-relaxed text-white/80">
+                        {decision.rationale ?? "No rationale provided for this decision."}
+                      </p>
+                    </div>
                   </section>
 
                   <section>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                    <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                       Provenance
                     </h3>
                     {citations.length > 0 ? (
-                      <ul className="mt-2 space-y-1.5">
-                        {citations.map((citation) => (
-                          <li key={citation.id}>
-                            <a
-                              href={citation.source.uri}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="group inline-flex items-baseline gap-2 text-sm text-white/82 hover:text-white"
-                            >
-                              <span className="font-medium underline-offset-2 group-hover:underline">
+                      <ul className="mt-3 grid grid-cols-1 gap-2">
+                        {citations.map((citation, i) => (
+                          <motion.li
+                            key={citation.id}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.15, delay: i * 0.05 }}
+                            className="group relative flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 transition hover:border-white/20 hover:bg-white/[0.05]"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <a
+                                href={citation.source.uri}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 font-medium text-[13px] text-white/90 underline-offset-2 group-hover:text-white group-hover:underline before:absolute before:inset-0"
+                              >
                                 {citation.source.title ?? citation.source.domain ?? citation.source.uri}
-                              </span>
+                              </a>
                               {citation.source.domain ? (
-                                <span className="text-[11px] text-white/45">{citation.source.domain}</span>
+                                <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-white/60">
+                                  {citation.source.domain}
+                                </span>
                               ) : null}
-                            </a>
+                            </div>
                             {citation.excerpt ? (
-                              <p className="mt-0.5 text-[12px] leading-relaxed text-white/55">
-                                {citation.excerpt}
-                              </p>
+                              <div className="rounded-md bg-black/30 p-2.5 border border-white/5">
+                                <p className="text-[12px] leading-relaxed text-white/60 line-clamp-3">
+                                  {citation.excerpt}
+                                </p>
+                              </div>
                             ) : null}
-                          </li>
+                          </motion.li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-2 text-sm text-white/55">
+                      <p className="mt-2 text-[13px] text-white/55">
                         No citations were attached to this decision.
                       </p>
                     )}

@@ -96,15 +96,15 @@ MVP covers four core framework capabilities:
 - [x] Stable lane persistence during branch switching
 - [x] Curved fork connectors with active/inactive styling
 - [x] Decision confidence tooltip + citation links (`+X` expansion)
-- [ ] Execution Gate node and action controls
-- [ ] Conflict node and manual resolution state updates
-- [ ] Basic docs quickstart and API references
+- [x] Execution Gate node and action controls
+- [x] Conflict node and manual resolution state updates
+- [x] Basic docs quickstart and API references
 
 ## P1 (Should-Have for MVP Quality)
 
 - [ ] Provenance highlight animation between decision and citation links
-- [ ] Inline payload editor for Execution Gate "Modify"
-- [ ] Side-by-side conflict snippet comparison panel
+- [x] Inline payload editor for Execution Gate "Modify"
+- [x] Side-by-side conflict snippet comparison panel
 - [ ] Keyboard and screen-reader polish for all controls
 - [ ] Touch fallback for hover-only interactions
 - [ ] End-to-end interaction tests for fork/switch/resolve/guardrail flows

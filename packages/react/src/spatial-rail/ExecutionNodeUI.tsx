@@ -12,6 +12,7 @@ export type ExecutionNodeUIProps = {
 export function ExecutionNodeUI({ node, isActive }: ExecutionNodeUIProps) {
   const { updateExecutionGate } = useThoughtTree();
   const [isModifying, setIsModifying] = React.useState(false);
+  const [isExplaining, setIsExplaining] = React.useState(false);
   
   // Initialize payload string
   const [payloadStr, setPayloadStr] = React.useState(() => {
@@ -50,7 +51,7 @@ export function ExecutionNodeUI({ node, isActive }: ExecutionNodeUIProps) {
   };
 
   const isPending = node.gate.status === "pending";
-  const containerBaseClasses = "w-full max-w-sm rounded-[1.25rem] border p-4 shadow-gb-node transition-colors";
+  const containerBaseClasses = "w-[340px] rounded-[1.25rem] border p-4 shadow-gb-node transition-colors text-left";
   
   const stateClasses = !isActive
     ? "border-white/10 bg-white/[0.02]"
@@ -85,6 +86,13 @@ export function ExecutionNodeUI({ node, isActive }: ExecutionNodeUIProps) {
       </div>
 
       <div className="mt-4">
+        {isExplaining && node.action.explanation && (
+          <div className="mb-4 rounded-[0.85rem] border border-[#e0bc78]/30 bg-[#e0bc78]/5 p-3">
+            <p className="text-xs leading-relaxed text-[#e0bc78]/90">
+              {node.action.explanation}
+            </p>
+          </div>
+        )}
         {isModifying && isPending && isActive ? (
           <div>
             <label
@@ -112,46 +120,57 @@ export function ExecutionNodeUI({ node, isActive }: ExecutionNodeUIProps) {
       </div>
 
       {isPending && isActive && (
-        <div className="mt-5 grid grid-cols-2 gap-2">
+        <div className={`mt-5 grid gap-2 ${node.action.explanation && !isModifying ? "grid-cols-3" : "grid-cols-2"}`}>
           {isModifying ? (
             <>
               <button
                 onClick={() => setIsModifying(false)}
-                className="rounded-[0.75rem] border border-white/15 px-3 py-2 text-xs font-medium text-white/80 transition hover:border-white/35 hover:text-white"
+                className="rounded-[0.75rem] border border-white/15 px-3 py-2 text-xs font-medium text-white/80 transition hover:border-white/35 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/20"
               >
                 Cancel Edit
               </button>
               <button
                 onClick={() => handleStatusChange("allowed_once", "Modified payload manually")}
-                className="rounded-[0.75rem] border border-[#e0bc78]/70 bg-[#e0bc78] px-3 py-2 text-xs font-semibold text-[#1a1407] transition hover:bg-[#ecc685] active:scale-[0.98]"
+                className="rounded-[0.75rem] border border-[#e0bc78]/70 bg-[#e0bc78] px-3 py-2 text-xs font-semibold text-[#1a1407] transition hover:bg-[#ecc685] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#e0bc78]/50"
               >
                 Execute Modified
               </button>
             </>
           ) : (
             <>
+              {node.action.explanation && (
+                <button
+                  onClick={() => setIsExplaining((prev) => !prev)}
+                  className={`rounded-[0.75rem] border px-3 py-2 text-[11px] font-medium transition focus:outline-none focus:ring-2 focus:ring-[#e0bc78]/40 ${
+                    isExplaining 
+                      ? "border-[#e0bc78]/50 bg-[#e0bc78]/10 text-[#e0bc78]" 
+                      : "border-white/15 text-white/80 hover:border-white/35 hover:text-white"
+                  }`}
+                >
+                  {isExplaining ? "Hide Info" : "Explain"}
+                </button>
+              )}
               <button
                 onClick={() => setIsModifying(true)}
-                className="rounded-[0.75rem] border border-white/15 px-3 py-2 text-xs font-medium text-white/80 transition hover:border-white/35 hover:text-white"
+                className="rounded-[0.75rem] border border-white/15 px-3 py-2 text-[11px] font-medium text-white/80 transition hover:border-white/35 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/20"
               >
                 Modify
               </button>
               <button
                 onClick={() => handleStatusChange("rejected")}
-                className="rounded-[0.75rem] border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
+                className="rounded-[0.75rem] border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-medium text-red-200 transition hover:bg-red-500/20 focus:outline-none focus:ring-2 focus:ring-red-500/40"
               >
                 Reject
               </button>
               <button
                 onClick={() => handleStatusChange("allowed_once")}
-                className="col-span-2 rounded-[0.75rem] border border-emerald-500/50 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/30"
+                className={`${node.action.explanation ? "col-span-3" : "col-span-2"} rounded-[0.75rem] border border-emerald-500/50 bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/30 focus:outline-none focus:ring-2 focus:ring-emerald-500/40`}
               >
                 Allow Once
               </button>
-              {/* Note: "Always Allow" can be added here as an icon or dropdown, omitting for simplicity of MVP or adding as a small link below */}
               <button
                 onClick={() => handleStatusChange("always_allowed")}
-                className="col-span-2 mt-1 text-[10px] font-medium text-white/40 transition hover:text-white/70"
+                className={`${node.action.explanation ? "col-span-3" : "col-span-2"} mt-1 rounded text-[10px] font-medium text-white/40 transition hover:text-white/70 focus:outline-none focus:ring-2 focus:ring-white/20`}
               >
                 Always allow this action
               </button>

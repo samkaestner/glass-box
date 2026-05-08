@@ -66,6 +66,7 @@ export type ExecutionNode = ThoughtNodeBase &
       kind: string;
       payload: unknown;
       summary: string;
+      explanation?: string;
     }>;
     gate: Readonly<{
       status: ExecutionGateStatus;
