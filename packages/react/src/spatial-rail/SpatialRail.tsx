@@ -284,19 +284,13 @@ export function SpatialRail(props: SpatialRailProps) {
 
       if (node.type === "citation") {
         return (
-          <div
-            className={[
-              "px-2 py-1 text-xs font-medium tracking-[0.08em] transition-colors",
-              isHighlightedCitation
-                ? "text-[#e0bc78]"
-                : isInactive
-                  ? "text-white/28"
-                  : "text-white/46"
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            citation
+          <div className="flex flex-col items-center py-0.5">
+            <div 
+              className={[
+                "w-1.5 h-1.5 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(255,255,255,0.1)]",
+                isHighlightedCitation ? "bg-[#e0bc78] scale-125" : isInactive ? "bg-white/10" : "bg-white/30"
+              ].join(" ")}
+            />
           </div>
         );
       }
@@ -321,133 +315,62 @@ export function SpatialRail(props: SpatialRailProps) {
 
         return (
           <div
-            className="group relative"
+            className="group relative flex flex-col items-center"
             onMouseEnter={() => setHoveredDecisionNodeId(node.id)}
             onMouseLeave={() => setHoveredDecisionNodeId((current) => (current === node.id ? null : current))}
           >
-            <div className="group/decision relative inline-flex">
-              {canFork ? (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openDecisionModal(opts.branchId, node.id, "details");
-                  }}
-                  aria-label={`Open decision details for ${node.claim} (${confidencePct}% confidence)`}
-                  aria-haspopup="dialog"
-                  className={[
-                    "inline-flex max-w-[160px] items-center truncate whitespace-nowrap rounded-full border px-5 py-2 text-sm font-semibold shadow-gb-node",
-                    "transition-colors focus:outline-none focus:ring-2 focus:ring-[#e0bc78]/45",
-                    "cursor-pointer hover:brightness-110 active:scale-[0.98]",
-                    isHoveredDecision ? "ring-2 ring-[#e0bc78]/40" : "",
-                    decisionTone.activeClasses
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {node.claim}
-                </button>
-              ) : (
-                <div
-                  aria-label={`${node.id} decision with ${confidencePct}% confidence`}
-                  className={[
-                    "inline-flex max-w-[160px] items-center truncate whitespace-nowrap rounded-full border px-5 py-2 text-sm font-semibold shadow-gb-node",
-                    "transition-colors",
-                    isHoveredDecision ? "ring-2 ring-[#e0bc78]/40" : "",
-                    isInactive ? decisionTone.inactiveClasses : decisionTone.activeClasses
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  {node.claim}
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                openDecisionModal(opts.branchId, node.id, "details");
+              }}
+              className={[
+                "flex w-full max-w-[280px] flex-col overflow-hidden rounded-[10px] rounded-tl-none border shadow-gb-node transition-all duration-300",
+                isHoveredDecision ? "ring-1 ring-[#e0bc78]/40 scale-[1.02]" : "",
+                isInactive ? "opacity-40 grayscale-[0.5]" : "hover:brightness-110",
+                decisionTone.activeClasses.split(" ")[0], 
+                "bg-[#0d1117] border-white/10"
+              ].join(" ")}
+            >
+              <div className="flex w-full">
+                {/* Confidence Strip */}
+                <div 
+                  className={`w-1 shrink-0 ${decisionTone.activeClasses.split(" ")[1]}`} 
+                  style={{ opacity: confidence * 0.8 + 0.2 }}
+                />
+                
+                <div className="flex-1 p-3 text-left">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold tracking-tight text-white/95 line-clamp-2">
+                      {node.claim}
+                    </span>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider ${decisionTone.activeClasses.split(" ")[2]}`}>
+                      {confidencePct}%
+                    </span>
+                  </div>
+                  
+                  {decisionCitations.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5 border-t border-white/5 pt-2">
+                      {visibleCitations.map((citation) => (
+                        <div 
+                          key={citation.id}
+                          className="flex items-center gap-1 text-[9px] font-medium text-white/40"
+                        >
+                          <svg className="w-2.5 h-2.5 opacity-40" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>
+                          <span className="truncate max-w-[80px]">
+                            {citation.source.domain ?? "source"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-
-              <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 rounded-md border border-white/15 bg-[#0e1420] px-2 py-1 text-xs font-medium text-white/85 opacity-0 shadow-gb-node transition group-hover/decision:opacity-100">
-                {confidencePct}% confidence
               </div>
-            </div>
-
-            <div className="mt-1.5 flex flex-col items-center gap-0.5">
-              {visibleCitations.map((citation) => (
-                <motion.a
-                  key={citation.id}
-                  href={citation.source.uri}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(event) => event.stopPropagation()}
-                  animate={{
-                    scale: isHoveredDecision ? 1.02 : 1,
-                    x: isHoveredDecision ? 4 : 0
-                  }}
-                  transition={{ duration: 0.2 }}
-                  className={[
-                    "inline-flex max-w-[140px] items-center truncate text-[11px] font-medium underline-offset-2",
-                    highlightedCitationIds.size > 0
-                      ? highlightedCitationIds.has(citation.id)
-                        ? "text-[#e0bc78] underline"
-                        : "text-white/32"
-                      : isInactive
-                        ? "text-white/40"
-                        : "text-white/72 hover:text-white hover:underline"
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  title={citation.source.title ?? citation.source.uri}
-                >
-                  {citation.source.domain ?? citation.source.title ?? "source"}
-                </motion.a>
-              ))}
-
-              {hasOverflow && !isExpanded ? (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setExpandedCitationNodes((prev) => ({ ...prev, [node.id]: true }));
-                  }}
-                  className={[
-                    "inline-flex items-center text-[11px] font-semibold underline-offset-2",
-                    isInactive
-                      ? "text-white/40"
-                      : "text-white/75 hover:text-white hover:underline"
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
-                  +{hiddenCount}
-                </button>
-              ) : null}
-            </div>
-
-            {canFork ? (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openDecisionModal(opts.branchId, node.id, "steer");
-                }}
-                disabled={isForkingThisNode}
-                aria-label={`Fork conversation from ${node.claim}`}
-                aria-haspopup="dialog"
-                className="absolute -right-3 -top-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/20 bg-[#161d2b] text-white/80 opacity-0 transition group-hover:opacity-100 hover:border-white/45 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="6" cy="6" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-                  <circle cx="6" cy="18" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-                  <circle cx="18" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-                  <path
-                    d="M8.4 7.2v3.5c0 2.1 1.7 3.8 3.8 3.8h3.2"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            ) : null}
+            </button>
           </div>
         );
+/* OLD BLOCK DELETED */
       }
 
       if (node.type === "execution") {
@@ -631,9 +554,9 @@ export function SpatialRail(props: SpatialRailProps) {
 
       <div 
         className="overflow-x-auto pb-2"
-        style={{ 
-          WebkitMaskImage: "linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)", 
-          maskImage: "linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)" 
+        style={{
+          WebkitMaskImage: branches.length > 1 ? "linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)" : "none", 
+          maskImage: branches.length > 1 ? "linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)" : "none" 
         }}
       >
         <div ref={railTracksRef} className="relative w-max min-w-full">
@@ -718,7 +641,7 @@ export function SpatialRail(props: SpatialRailProps) {
                 tabIndex={canSwitchToBranch ? 0 : undefined}
                 className={[
                   "text-left shrink-0 transition-[width] duration-300 ease-out",
-                  isActive ? "w-[384px]" : "w-[188px]"
+                  isActive ? "w-[320px]" : "w-[188px]"
                 ].join(" ")}
                 aria-label={canSwitchToBranch ? `Switch to branch ${branch.id}` : undefined}
               >
